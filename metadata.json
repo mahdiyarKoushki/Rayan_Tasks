@@ -1,0 +1,6 @@
+{
+  "name": "Rayan - Liquid Glass Productivity",
+  "description": "Premium Persian personal productivity app with liquid glass design, dynamic ambient backgrounds, live timeline, habits, and visual goals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
