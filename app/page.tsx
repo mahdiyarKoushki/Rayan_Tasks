@@ -246,6 +246,7 @@ export default function Home() {
 
   // Database Synchronization State
   const [dbSyncStatus, setDbSyncStatus] = useState<'synced' | 'syncing' | 'error'>('synced');
+  const [lastDbSyncTime, setLastDbSyncTime] = useState<string>('');
   const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
   const syncTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -303,7 +304,7 @@ export default function Home() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [consecutiveCount, setConsecutiveCount] = useState(0);
 
-  // 1. Fetch data from persistent server database when user logs in
+  // 1. Fetch data from persistent server database when user logs in (with smart deployment reconciliation)
   useEffect(() => {
     if (!user) return;
 
@@ -313,10 +314,83 @@ export default function Home() {
         if (res.ok) {
           const json = await res.json();
           if (json.success && json.data) {
-            if (Array.isArray(json.data.tasks)) setTasks(json.data.tasks);
-            if (Array.isArray(json.data.habits)) setHabits(json.data.habits);
-            if (Array.isArray(json.data.goals)) setGoals(json.data.goals);
-            if (json.data.settings) setSettings(json.data.settings);
+            const serverData = json.data;
+
+            // Read local storage state
+            let localTasks: Task[] = [];
+            let localHabits: Habit[] = [];
+            let localGoals: Goal[] = [];
+            let localSettings: AppSettings | null = null;
+            let localLastUpdated = '';
+
+            try {
+              const rawT = localStorage.getItem('rayan_tasks');
+              if (rawT) localTasks = JSON.parse(rawT);
+              const rawH = localStorage.getItem('rayan_habits');
+              if (rawH) localHabits = JSON.parse(rawH);
+              const rawG = localStorage.getItem('rayan_goals');
+              if (rawG) localGoals = JSON.parse(rawG);
+              const rawS = localStorage.getItem('rayan_settings');
+              if (rawS) localSettings = JSON.parse(rawS);
+              localLastUpdated = localStorage.getItem('rayan_last_updated') || '';
+            } catch (e) {
+              console.warn('Local storage parsing error:', e);
+            }
+
+            const serverTasks = Array.isArray(serverData.tasks) ? serverData.tasks : [];
+            const serverHabits = Array.isArray(serverData.habits) ? serverData.habits : [];
+            const serverGoals = Array.isArray(serverData.goals) ? serverData.goals : [];
+            const serverLastUpdated = serverData.lastUpdated || '';
+
+            // Smart deployment reconciliation:
+            // If local storage has user tasks and local is newer OR server is empty,
+            // prevent deployed image from overriding user changes. Push local state to server file!
+            const localIsNewer =
+              Boolean(localLastUpdated) &&
+              Boolean(serverLastUpdated) &&
+              new Date(localLastUpdated).getTime() > new Date(serverLastUpdated).getTime();
+            const serverIsEmpty = serverTasks.length === 0 && localTasks.length > 0;
+
+            if ((localIsNewer || serverIsEmpty) && localTasks.length > 0) {
+              setTasks(localTasks);
+              if (localHabits.length > 0) setHabits(localHabits);
+              if (localGoals.length > 0) setGoals(localGoals);
+              if (localSettings) setSettings(localSettings);
+
+              // Auto-sync into server file database right away
+              await fetch('/api/db', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  tasks: localTasks,
+                  habits: localHabits.length > 0 ? localHabits : serverHabits,
+                  goals: localGoals.length > 0 ? localGoals : serverGoals,
+                  settings: localSettings || serverData.settings,
+                }),
+              });
+            } else {
+              // Server data is authoritatively updated
+              if (serverTasks.length > 0 || localTasks.length === 0) {
+                setTasks(serverTasks);
+                try { localStorage.setItem('rayan_tasks', JSON.stringify(serverTasks)); } catch {}
+              }
+              if (serverHabits.length > 0 || localHabits.length === 0) {
+                setHabits(serverHabits);
+                try { localStorage.setItem('rayan_habits', JSON.stringify(serverHabits)); } catch {}
+              }
+              if (serverGoals.length > 0 || localGoals.length === 0) {
+                setGoals(serverGoals);
+                try { localStorage.setItem('rayan_goals', JSON.stringify(serverGoals)); } catch {}
+              }
+              if (serverData.settings) {
+                setSettings(serverData.settings);
+                try { localStorage.setItem('rayan_settings', JSON.stringify(serverData.settings)); } catch {}
+              }
+              if (serverLastUpdated) {
+                try { localStorage.setItem('rayan_last_updated', serverLastUpdated); } catch {}
+                setLastDbSyncTime(serverLastUpdated);
+              }
+            }
           }
         }
         setDbSyncStatus('synced');
@@ -331,21 +405,23 @@ export default function Home() {
     fetchDatabase();
   }, [user]);
 
-  // 2. PERSIST EVERY CHANGE TO SERVER DATABASE AUTOMATICALLY
+  // 2. PERSIST EVERY CHANGE TO SERVER FILE DATABASE AUTOMATICALLY
   useEffect(() => {
     if (!user || !isInitialLoadDone) return;
 
+    const now = new Date().toISOString();
     // Fast local persistence
     try {
       localStorage.setItem('rayan_tasks', JSON.stringify(tasks));
       localStorage.setItem('rayan_habits', JSON.stringify(habits));
       localStorage.setItem('rayan_goals', JSON.stringify(goals));
       localStorage.setItem('rayan_settings', JSON.stringify(settings));
+      localStorage.setItem('rayan_last_updated', now);
     } catch {
       // ignore
     }
 
-    // Debounced automatic database persistence to disk
+    // Debounced automatic database persistence to file on disk
     if (syncTimerRef.current) {
       clearTimeout(syncTimerRef.current);
     }
@@ -365,20 +441,86 @@ export default function Home() {
         });
 
         if (res.ok) {
+          const json = await res.json();
+          if (json.timestamp) {
+            setLastDbSyncTime(json.timestamp);
+          }
           setDbSyncStatus('synced');
         } else {
           setDbSyncStatus('error');
         }
       } catch (err) {
-        console.error('Failed to save to database:', err);
+        console.error('Failed to save to database file:', err);
         setDbSyncStatus('error');
       }
-    }, 350);
+    }, 300);
 
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
   }, [tasks, habits, goals, settings, user, isInitialLoadDone]);
+
+  // Force manual sync to server file
+  const handleForceSync = async () => {
+    try {
+      setDbSyncStatus('syncing');
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tasks,
+          habits,
+          goals,
+          settings,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setDbSyncStatus('synced');
+        if (json.timestamp) setLastDbSyncTime(json.timestamp);
+        if (settings.soundEnabled) soundFx.playSuccess(true);
+      } else {
+        setDbSyncStatus('error');
+      }
+    } catch {
+      setDbSyncStatus('error');
+    }
+  };
+
+  // Import full database from uploaded JSON file
+  const handleImportDatabase = async (importedData: any): Promise<boolean> => {
+    try {
+      setDbSyncStatus('syncing');
+      const res = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'import',
+          data: importedData,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (Array.isArray(json.data.tasks)) setTasks(json.data.tasks);
+          if (Array.isArray(json.data.habits)) setHabits(json.data.habits);
+          if (Array.isArray(json.data.goals)) setGoals(json.data.goals);
+          if (json.data.settings) setSettings(json.data.settings);
+          setDbSyncStatus('synced');
+          if (json.timestamp) setLastDbSyncTime(json.timestamp);
+          return true;
+        }
+      }
+      setDbSyncStatus('error');
+      return false;
+    } catch (e) {
+      console.error('Import database failed:', e);
+      setDbSyncStatus('error');
+      return false;
+    }
+  };
 
   // Derived task counts
   const totalTasksCount = tasks.length;
@@ -773,6 +915,12 @@ export default function Home() {
               user={user}
               onLogout={handleLogout}
               dbSyncStatus={dbSyncStatus}
+              lastSyncTime={lastDbSyncTime}
+              tasksCount={tasks.length}
+              habitsCount={habits.length}
+              goalsCount={goals.length}
+              onForceSync={handleForceSync}
+              onImportDatabase={handleImportDatabase}
             />
           </motion.div>
         )}

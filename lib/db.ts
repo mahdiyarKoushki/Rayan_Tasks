@@ -238,10 +238,17 @@ const DEFAULT_DB_DATA: DatabaseSchema = {
 };
 
 function ensureDirExists(dirPath: string) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  try {
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+  } catch (e) {
+    console.error('Error ensuring database directory exists:', e);
   }
 }
+
+// In-memory fallback cache to ensure zero-loss if file system is temporarily busy
+let memoryCache: DatabaseSchema | null = null;
 
 /**
  * Retrieves the full database schema. If database does not exist,
@@ -252,29 +259,51 @@ export function getDatabase(): DatabaseSchema {
     ensureDirExists(DB_DIR);
     if (!fs.existsSync(DB_PATH)) {
       saveDatabaseAtomic(DEFAULT_DB_DATA);
+      memoryCache = DEFAULT_DB_DATA;
       return DEFAULT_DB_DATA;
     }
     const raw = fs.readFileSync(DB_PATH, 'utf-8');
     const parsed = JSON.parse(raw) as DatabaseSchema;
-    return {
+    const result: DatabaseSchema = {
       ...DEFAULT_DB_DATA,
       ...parsed,
-      settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : DEFAULT_DB_DATA.tasks,
+      habits: Array.isArray(parsed.habits) ? parsed.habits : DEFAULT_DB_DATA.habits,
+      goals: Array.isArray(parsed.goals) ? parsed.goals : DEFAULT_DB_DATA.goals,
+      settings: { ...DEFAULT_SETTINGS, ...(parsed.settings || {}) },
     };
+    memoryCache = result;
+    return result;
   } catch (error) {
     console.error('Error reading database file:', error);
+    if (memoryCache) return memoryCache;
     return DEFAULT_DB_DATA;
   }
 }
 
 /**
- * Atomically writes database content to disk.
+ * Atomically and reliably writes database content to disk.
  */
 function saveDatabaseAtomic(data: DatabaseSchema) {
-  ensureDirExists(DB_DIR);
-  const tempPath = `${DB_PATH}.tmp.${Date.now()}`;
-  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tempPath, DB_PATH);
+  memoryCache = data;
+  try {
+    ensureDirExists(DB_DIR);
+    const jsonString = JSON.stringify(data, null, 2);
+    const tempPath = `${DB_PATH}.tmp.${Date.now()}`;
+    
+    try {
+      fs.writeFileSync(tempPath, jsonString, 'utf-8');
+      fs.renameSync(tempPath, DB_PATH);
+    } catch {
+      // Fallback direct write if atomic rename is restricted
+      fs.writeFileSync(DB_PATH, jsonString, 'utf-8');
+      try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      } catch {}
+    }
+  } catch (err) {
+    console.error('CRITICAL: Failed to write database file to disk:', err);
+  }
 }
 
 /**
@@ -285,9 +314,31 @@ export function updateDatabase(updates: Partial<DatabaseSchema>): DatabaseSchema
   const nextData: DatabaseSchema = {
     ...current,
     ...updates,
+    tasks: Array.isArray(updates.tasks) ? updates.tasks : current.tasks,
+    habits: Array.isArray(updates.habits) ? updates.habits : current.habits,
+    goals: Array.isArray(updates.goals) ? updates.goals : current.goals,
     settings: updates.settings ? { ...current.settings, ...updates.settings } : current.settings,
     lastUpdated: new Date().toISOString(),
     version: (current.version || 1) + 1,
+  };
+
+  saveDatabaseAtomic(nextData);
+  return nextData;
+}
+
+/**
+ * Imports and replaces database with verified JSON data.
+ */
+export function importDatabase(data: any): DatabaseSchema {
+  const current = getDatabase();
+  const nextData: DatabaseSchema = {
+    tasks: Array.isArray(data.tasks) ? data.tasks : current.tasks,
+    habits: Array.isArray(data.habits) ? data.habits : current.habits,
+    goals: Array.isArray(data.goals) ? data.goals : current.goals,
+    settings: data.settings ? { ...DEFAULT_SETTINGS, ...data.settings } : current.settings,
+    user: data.user || current.user,
+    lastUpdated: new Date().toISOString(),
+    version: (typeof data.version === 'number' ? data.version : current.version) + 1,
   };
 
   saveDatabaseAtomic(nextData);
@@ -301,3 +352,4 @@ export function resetDatabase(): DatabaseSchema {
   saveDatabaseAtomic(DEFAULT_DB_DATA);
   return DEFAULT_DB_DATA;
 }
+

@@ -124,10 +124,10 @@ export default function HeaderHero({
               )}
               <span>
                 {dbSyncStatus === 'syncing'
-                  ? 'ذخیره در دیتابیس...'
+                  ? 'ذخیره در فایل database.json...'
                   : dbSyncStatus === 'error'
-                  ? 'خطای ذخیره دیتابیس'
-                  : 'دیتابیس ذخیره شد ✓'}
+                  ? 'خطا در ثبت فایل دیتابیس'
+                  : 'ذخیره در database.json ✓'}
               </span>
             </div>
 

@@ -1,0 +1,241 @@
+{
+  "tasks": [
+    {
+      "id": "t-1",
+      "title": "ورزش صبحگاهی و تمرینات کششی",
+      "category": "fitness",
+      "startTime": "08:00",
+      "endTime": "08:45",
+      "durationMinutes": 45,
+      "completed": true,
+      "priority": "high",
+      "timeSlot": "morning",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "تمرین هیت و نرمش‌های بیداری"
+    },
+    {
+      "id": "t-2",
+      "title": "جلسه بازبینی اسپرینت تیم",
+      "category": "work",
+      "startTime": "09:30",
+      "endTime": "10:30",
+      "durationMinutes": 60,
+      "completed": true,
+      "priority": "urgent",
+      "timeSlot": "morning",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "هماهنگی ویژگی‌های ریلیز جدید محصول"
+    },
+    {
+      "id": "t-3",
+      "title": "طراحی معماری سیستم کش Redis",
+      "category": "coding",
+      "startTime": "11:00",
+      "endTime": "12:30",
+      "durationMinutes": 90,
+      "completed": true,
+      "priority": "high",
+      "timeSlot": "morning",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "بهینه‌سازی تاخیر پاسخ‌دهی به کوئری‌ها"
+    },
+    {
+      "id": "t-4",
+      "title": "یادگیری عمیق Backend",
+      "category": "learning",
+      "startTime": "16:00",
+      "endTime": "17:00",
+      "durationMinutes": 60,
+      "completed": false,
+      "isCurrent": true,
+      "priority": "urgent",
+      "timeSlot": "afternoon",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "مفاهیم پیشرفته پایگاه‌داده و ایندکس‌گذاری"
+    },
+    {
+      "id": "t-5",
+      "title": "English تمرین مکالمه و لیسنینگ",
+      "category": "english",
+      "startTime": "17:00",
+      "endTime": "17:30",
+      "durationMinutes": 30,
+      "completed": false,
+      "isNext": true,
+      "priority": "medium",
+      "timeSlot": "afternoon",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "تکنیک Shadowing با پادکست‌های تخصصی"
+    },
+    {
+      "id": "t-6",
+      "title": "پروژه شخصی: پیاده‌سازی Liquid Glass UI",
+      "category": "coding",
+      "startTime": "18:30",
+      "endTime": "20:00",
+      "durationMinutes": 90,
+      "completed": false,
+      "priority": "high",
+      "timeSlot": "evening",
+      "date": "۱۴۰۳/۰۶/۲۹",
+      "notes": "تنظیم افکت‌های بلور و ترنسپرنسی لایه‌ای"
+    },
+    {
+      "id": "t-7",
+      "title": "استراحت، شام و بازی آنلاین",
+      "category": "entertainment",
+      "startTime": "20:30",
+      "endTime": "21:30",
+      "durationMinutes": 60,
+      "completed": false,
+      "priority": "low",
+      "timeSlot": "evening",
+      "date": "۱۴۰۳/۰۶/۲۹"
+    },
+    {
+      "id": "t-8",
+      "title": "خواب آرام و ریکاوری شبانه",
+      "category": "sleep",
+      "startTime": "23:30",
+      "endTime": "07:30",
+      "durationMinutes": 480,
+      "completed": false,
+      "priority": "medium",
+      "timeSlot": "night",
+      "date": "۱۴۰۳/۰۶/۲۹"
+    }
+  ],
+  "habits": [
+    {
+      "id": "h-1",
+      "title": "English (تمرین روزانه زبان)",
+      "category": "english",
+      "streak": 12,
+      "completedToday": true,
+      "weeklyHistory": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "targetFrequency": "هر روز ۳۰ دقیقه"
+    },
+    {
+      "id": "h-2",
+      "title": "ورزش و تناسب اندام",
+      "category": "fitness",
+      "streak": 8,
+      "completedToday": true,
+      "weeklyHistory": [
+        true,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true
+      ],
+      "targetFrequency": "حداقل ۴۵ دقیقه فعالیت"
+    },
+    {
+      "id": "h-3",
+      "title": "مطالعه تخصصی و تکنولوژی",
+      "category": "learning",
+      "streak": 5,
+      "completedToday": false,
+      "weeklyHistory": [
+        true,
+        false,
+        true,
+        true,
+        true,
+        false,
+        false
+      ],
+      "targetFrequency": "هر روز ۲۰ صفحه"
+    },
+    {
+      "id": "h-4",
+      "title": "کدنویسی و کامیت در گیت‌هاب",
+      "category": "coding",
+      "streak": 24,
+      "completedToday": true,
+      "weeklyHistory": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "targetFrequency": "حداقل ۱ کامیت مفید"
+    }
+  ],
+  "goals": [
+    {
+      "id": "g-1",
+      "title": "Backend Developer متخصص",
+      "category": "coding",
+      "currentProgress": 72,
+      "completedTasks": 12,
+      "totalTasks": 16,
+      "deadline": "پایان مهر ماه",
+      "description": "تسلط عمیق بر معماری میکروسرویس و کارایی دیتابیس"
+    },
+    {
+      "id": "g-2",
+      "title": "آیلتس آکادمیک نمره ۷.۵",
+      "category": "english",
+      "currentProgress": 65,
+      "completedTasks": 18,
+      "totalTasks": 28,
+      "deadline": "آبان ماه ۱۴۰۳",
+      "description": "تمرکز بر بخش اسپیکینگ و رایتینگ تسک ۲"
+    },
+    {
+      "id": "g-3",
+      "title": "تناسب اندام و چربی‌سوزی ۱۰٪",
+      "category": "fitness",
+      "currentProgress": 80,
+      "completedTasks": 24,
+      "totalTasks": 30,
+      "deadline": "پایان پاییز",
+      "description": "رژیم غذایی منظم به همراه تمرینات قدرتی"
+    },
+    {
+      "id": "g-4",
+      "title": "انتشار کتابچه معماری نرم‌افزار",
+      "category": "learning",
+      "currentProgress": 40,
+      "completedTasks": 4,
+      "totalTasks": 10,
+      "deadline": "زمستان امسال",
+      "description": "گردآوری تجربیات طراحی سیستم‌های توزیع‌شده"
+    }
+  ],
+  "settings": {
+    "userName": "mk",
+    "theme": "dark",
+    "timeOfDay": "afternoon",
+    "accentColor": "violet",
+    "backgroundStyle": "geometric-mesh",
+    "backgroundDim": 55,
+    "interactiveBubbles": true,
+    "showFocusBubbles": true,
+    "soundEnabled": true,
+    "hapticEnabled": true,
+    "persianDigits": true,
+    "density": "comfortable"
+  },
+  "user": {
+    "username": "mk",
+    "displayName": "کاربر mk",
+    "role": "owner"
+  },
+  "lastUpdated": "2026-09-19T11:27:33.369Z",
+  "version": 19
+}

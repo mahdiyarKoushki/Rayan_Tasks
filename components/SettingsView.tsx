@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Sun,
@@ -16,6 +16,12 @@ import {
   ShieldCheck,
   LogOut,
   CheckCircle2,
+  Download,
+  Upload,
+  FileJson,
+  HardDrive,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 import { AppSettings, TimeOfDay, ThemeMode, AccentColor, BackgroundStyle } from '@/lib/types';
 import { soundFx, triggerHaptic } from '@/lib/audio';
@@ -28,6 +34,12 @@ interface SettingsViewProps {
   user?: { username: string; displayName: string } | null;
   onLogout?: () => void;
   dbSyncStatus?: 'synced' | 'syncing' | 'error';
+  lastSyncTime?: string;
+  tasksCount?: number;
+  habitsCount?: number;
+  goalsCount?: number;
+  onForceSync?: () => void;
+  onImportDatabase?: (jsonData: any) => Promise<boolean>;
 }
 
 export default function SettingsView({
@@ -37,7 +49,17 @@ export default function SettingsView({
   user,
   onLogout,
   dbSyncStatus = 'synced',
+  lastSyncTime,
+  tasksCount = 0,
+  habitsCount = 0,
+  goalsCount = 0,
+  onForceSync,
+  onImportDatabase,
 }: SettingsViewProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
   const bgStyles: { id: BackgroundStyle; title: string; desc: string; icon: string }[] = [
     {
       id: 'bubble-map',
@@ -156,16 +178,172 @@ export default function SettingsView({
           <div className="flex items-center gap-2">
             <Database className="w-4 h-4 text-emerald-500" />
             <span className="text-slate-700 dark:text-slate-300 font-bold">
-              وضعیت دیتابیس اختصاصی:
+              وضعیت دیتابیس فایل‌محور:
             </span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{dbSyncStatus === 'syncing' ? 'در حال ذخیره‌سازی...' : 'پایدار و ذخیره‌شده روی سرور'}</span>
+              <span>{dbSyncStatus === 'syncing' ? 'در حال ثبت در فایل...' : 'پایدار و ذخیره‌شده روی دیسک سرور'}</span>
             </span>
           </div>
-          <span className="text-[11px] text-slate-400">
-            ذخیره خودکار در هر تغییر (Auto-Save)
+          <span className="text-[11px] text-slate-400 font-mono">
+            data/database.json
           </span>
+        </div>
+      </motion.div>
+
+      {/* File Database Management Center (Card for Persistence & Backups) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.03 }}
+        className="rounded-3xl p-5 glass-panel glass-edge space-y-4 border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 via-white/5 to-slate-900/30"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 flex items-center justify-center">
+              <HardDrive className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                  پایگاه‌داده فایل‌محور (data/database.json)
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  ماندگار در دپلوی
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                تمام تغییرات به صورت خودکار در فایل JSON ذخیره شده و پس از Deploy یا ریست کانتینر بازگردانی می‌شوند.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Database Metrics */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+          <div className="p-2.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10">
+            <span className="text-slate-400 text-[10px] block">کارهای ثبت‌شده</span>
+            <span className="text-base font-bold text-violet-600 dark:text-violet-400">
+              {toPersianDigits(tasksCount, settings.persianDigits)}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10">
+            <span className="text-slate-400 text-[10px] block">عادت‌های فعال</span>
+            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+              {toPersianDigits(habitsCount, settings.persianDigits)}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10">
+            <span className="text-slate-400 text-[10px] block">اهداف دوره‌ای</span>
+            <span className="text-base font-bold text-indigo-600 dark:text-indigo-400">
+              {toPersianDigits(goalsCount, settings.persianDigits)}
+            </span>
+          </div>
+          <div className="p-2.5 rounded-2xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10">
+            <span className="text-slate-400 text-[10px] block">وضعیت فایل</span>
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+              {dbSyncStatus === 'syncing' ? 'در حال نوشتن...' : 'کاملاً به‌روز'}
+            </span>
+          </div>
+        </div>
+
+        {/* Import notification */}
+        {importStatus === 'success' && (
+          <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>اطلاعات دیتابیس با موفقیت از فایل بارگذاری و روی سرور ذخیره شد!</span>
+          </div>
+        )}
+        {importStatus === 'error' && (
+          <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>خطا در خواندن فایل JSON. لطفاً ساختار فایل را بررسی فرمایید.</span>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          {/* Download JSON button */}
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                setIsExporting(true);
+                const a = document.createElement('a');
+                a.href = '/api/db?download=1';
+                a.download = `database_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                if (settings.soundEnabled) soundFx.playSuccess(true);
+              } catch (err) {
+                console.error('Download error:', err);
+              } finally {
+                setTimeout(() => setIsExporting(false), 800);
+              }
+            }}
+            disabled={isExporting}
+            className="flex-1 min-w-[140px] px-3.5 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExporting ? 'در حال آماده‌سازی...' : 'دانلود فایل دیتابیس (JSON)'}</span>
+          </button>
+
+          {/* Import JSON button */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = async (event) => {
+                try {
+                  const text = event.target?.result as string;
+                  const parsed = JSON.parse(text);
+                  if (onImportDatabase) {
+                    const success = await onImportDatabase(parsed);
+                    if (success) {
+                      setImportStatus('success');
+                      if (settings.soundEnabled) soundFx.playSuccess(true);
+                      setTimeout(() => setImportStatus(null), 3500);
+                    } else {
+                      setImportStatus('error');
+                      setTimeout(() => setImportStatus(null), 3500);
+                    }
+                  }
+                } catch {
+                  setImportStatus('error');
+                  setTimeout(() => setImportStatus(null), 3500);
+                }
+              };
+              reader.readAsText(file);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-1 min-w-[140px] px-3.5 py-2.5 rounded-2xl bg-white/40 dark:bg-white/10 hover:bg-white/60 dark:hover:bg-white/15 text-slate-800 dark:text-white border border-white/20 dark:border-white/10 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <Upload className="w-3.5 h-3.5 text-violet-500" />
+            <span>بازیابی از فایل JSON</span>
+          </button>
+
+          {/* Force Sync button */}
+          {onForceSync && (
+            <button
+              type="button"
+              onClick={onForceSync}
+              className="px-3.5 py-2.5 rounded-2xl bg-white/40 dark:bg-white/10 hover:bg-white/60 dark:hover:bg-white/15 text-slate-700 dark:text-slate-300 border border-white/20 dark:border-white/10 text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              title="همگام‌سازی فوری دیتابیس با سرور"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${dbSyncStatus === 'syncing' ? 'animate-spin text-amber-500' : 'text-slate-500'}`} />
+              <span className="hidden sm:inline">همگام‌سازی</span>
+            </button>
+          )}
         </div>
       </motion.div>
 

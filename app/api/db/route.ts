@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase, updateDatabase, resetDatabase } from '@/lib/db';
+import { getDatabase, updateDatabase, resetDatabase, importDatabase } from '@/lib/db';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const db = getDatabase();
+    const download = req.nextUrl.searchParams.get('download') || req.nextUrl.searchParams.get('export');
+
+    if (download === '1' || download === 'true') {
+      return new NextResponse(JSON.stringify(db, null, 2), {
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="database.json"',
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: db,
@@ -30,6 +41,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (body.action === 'import') {
+      const importedData = importDatabase(body.data);
+      return NextResponse.json({
+        success: true,
+        message: 'دیتابیس با موفقیت از فایل بازیابی شد',
+        timestamp: importedData.lastUpdated,
+        version: importedData.version,
+        data: importedData,
+      });
+    }
+
     const updated = updateDatabase(body);
     return NextResponse.json({
       success: true,
@@ -46,3 +68,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
